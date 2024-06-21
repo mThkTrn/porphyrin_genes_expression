@@ -1,0 +1,1011 @@
+---
+title: "porphyrin_genes_expression"
+author: "Madhavendra Thakur"
+date: "2024-05-20"
+output: html_document
+---
+
+## Expression of Porphyrin Genes in Wild Type Mouse, Zebrafish and Human Livers, and DDC Mice Livers
+
+### Import Libraries, Functions
+
+##### Libraries
+
+```{r}
+library(Seurat)
+library(SeuratData)
+library(patchwork)
+library(ggplot2)
+library(cowplot)
+library(metap)
+library(dplyr)
+```
+
+##### Genes
+
+```{r}
+humanPorphyrinGenes <- c('HMOX1','FECH','EPRS','FXN','HCCS','BLVRB','HMBS','COX15','EARS2','BLVRA','HMOX2','PPOX','UROD','MMAB','CPOX','GUSB','UROS','COX10','ALAD','CP','ALAS2','ALAS1','ABCB6','ABCG2','ABCC5','ABCC12','ABCC3','ABCC4','ABCCB10','SLCO2B1','ALB','FABP1','GSTA1','UGT1A1','UGT1A4','ABCC1','ABCC2','SLCO1B3','FLVCR1','SLCO1B1')
+
+mousePorphyrinGenes <- c("Hmox1", "Fech", "Eprs", "Fxn", "Hccs", "Blvrb", "Hmbs", "Cox15", "Ears2", "Blvra", "Hmox2", "Ppox", "Urod", "Mmab", "Cpox", "Gusb", "Uros", "Cox10", "Alad", "Cp", "Alas2", "Alas1", "Abcb6", "Abcg2", "Abcc5", "Abcc12", "Abcc3", "Abcc4", "Abccb10", "Slco2b1", "Alb", "Fabp1", "Gsta1", "Ugt1a1", "Ugt1a4", "Abcc1", "Abcc2", "Slco1b3", "Flvcr1", "Slco1b1")
+
+zfishPorphyrinGenes <- c("hmox1", "fech", "eprs", "fxn", "hccs", "blvrb", "hmbs", "cox15", "ears2", "blvra", "hmox2", "ppox", "urod", "mmab", "cpox", "gusb", "uros", "cox10", "alad", "cp", "alas2", "alas1", "abcb6", "abcg2", "abcc5", "abcc12", "abcc3", "abcc4", "abccb10", "slco2b1", "alb", "fabp1", "gsta1", "ugt1a1", "ugt1a4", "abcc1", "abcc2", "slco1b3", "flvcr1", "slco1b1")
+```
+
+##### Prepare function to display graphs
+
+```{r}
+display_gene_expression <- function(DataFromRDS, DataDescription, type){
+  if (type == "mouse"){porphyrinGenes = mousePorphyrinGenes}
+  if (type == "human"){porphyrinGenes = humanPorphyrinGenes}
+  if (type == "zfish"){porphyrinGenes = zfishPorphyrinGenes}
+#  for (i in porphyrinGenes){
+#    print(FeaturePlot(DataFromRDS, features = i, label = TRUE) + ggtitle(paste("Expression of", i, "in", DataDescription , ", Feature Plot")))
+#  }
+  rm(i)
+  
+  print(DotPlot(DataFromRDS, features = porphyrinGenes) + ggtitle(paste(" Scaled Gene Expression in Cells of", DataDescription)) + theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1, size = 14)) )
+  
+theme(plot.caption = element_text(hjust = 0, face= "italic"))
+  outgraph = DotPlot(DataFromRDS, features=porphyrinGenes[1]) + NoLegend()+xlab("") + ylab("") + ggtitle(paste("Gene Expression in Cells of", DataDescription))
+for (i in porphyrinGenes){
+  if (i != porphyrinGenes[1] & i %in% rownames(DataFromRDS)){
+    tryCatch(
+    {
+    outgraph = outgraph + (DotPlot(DataFromRDS, features = i) + NoLegend() +xlab("") + ylab("") + theme(axis.text.y = element_blank()))
+      print(DotPlot(DataFromRDS, features = i) + NoLegend() +xlab("") + ylab(""))
+    },
+    error = function(e){
+      error <- TRUE
+    })
+  }
+}
+rm(i)
+print(outgraph)
+rm(outgraph)
+  
+}
+```
+
+```{r}
+
+display_multiple_datasets <- function(data_arr, data_descs){
+  outgraph = DotPlot(data_arr[1], features=porphyrinGenes)
+}
+
+```
+
+### WT Human Livers
+
+##### Load Data
+```{r}
+jointAtlas <- readRDS("data/human_zfish.rds")
+humanData <- subset(jointAtlas, subset = group == "Human")
+```
+
+##### Dot Plots
+
+```{r fig.height = 20}
+display_gene_expression(humanData, "Wild Type Human Livers", "human")
+```
+
+### WT Zebrafish Livers
+
+##### Load Data
+
+```{r}
+zfData <- subset(jointAtlas, subset = group == "Fish")
+```
+
+##### Dot Plots 
+
+```{r fig.height = 20}
+display_gene_expression(zfData, "Wild Type Zebrafish Livers", "human")
+```
+
+
+### WT Mice Livers
+
+##### Load Data
+
+```{r}
+mouseData <- readRDS("data/friedman_mouse_nash.rds")
+mouseData <- ScaleData(object = mouseData, features = rownames(mouseData))
+mouseControl = subset(mouseData, subset = orig.ident %in% c("snRNAseq_norm0317","snRNAseq_norm0324"))
+```
+
+##### Dot Plots
+
+```{r fig.height =20}
+display_gene_expression(mouseControl, "Wild Type Mouse Livers", "mouse")
+```
+
+
+### DDC and Control Mice Livers
+
+##### Load Control Data
+
+```{r}
+
+Bulk_ctrl_rep1 <- CreateSeuratObject(counts = Read10X_h5("data/merrell_mouse_ddc/GSM4885630_Bulk_ctrl_rep1_filtered_feature_bc_matrix.h5"), project = "Bulk_ctrl_rep1")
+
+
+YFP_ctrl_rep1 <- CreateSeuratObject(counts = Read10X_h5("data/merrell_mouse_ddc/GSM4885632_YFP_ctrl_rep1_filtered_feature_bc_matrix.h5"), project = "YFP_ctrl_rep1")
+
+```
+##### Load DDC Data
+
+```{r}
+Bulk_ddc_w6 <- CreateSeuratObject(counts = Read10X_h5("data/merrell_mouse_ddc/GSE157698_Bulk_W6_filtered_gene_bc_matrices_h5.h5"), project = "Bulk_ddc_w6")
+
+YFP_ddc_w6 <- CreateSeuratObject(counts = Read10X_h5("data/merrell_mouse_ddc/GSE157698_YFP_W6_filtered_gene_bc_matrices_h5.h5"), project = "YFP_ddc_w6")
+```
+##### Merge Data
+
+```{r}
+
+bulk_all_types <- merge(Bulk_ctrl_rep1, y = Bulk_ddc_w6, add.cell.ids = c("control", "ddc"))
+
+```
+
+##### Normalize Data
+
+```{r}
+#YFP_ctrl_rep1 <- NormalizeData(YFP_ctrl_rep1)
+#Bulk_ctrl_rep1 <- NormalizeData(Bulk_ctrl_rep1)
+
+#Bulk_ddc_w6 <- NormalizeData(Bulk_ddc_w6)
+#YFP_ddc_w6 <- NormalizeData(YFP_ddc_w6)
+
+bulk_all_types <- NormalizeData(bulk_all_types)
+
+```
+
+##### Find Variable Features
+
+```{r}
+#Bulk_ctrl_rep1 <- FindVariableFeatures(Bulk_ctrl_rep1, selection.method = "vst", nfeatures = 2000)
+#YFP_ctrl_rep1 <- FindVariableFeatures(YFP_ctrl_rep1, selection.method = "vst", nfeatures = 2000)
+
+
+#Bulk_ddc_w6 <- FindVariableFeatures(Bulk_ddc_w6, selection.method = "vst", nfeatures = 2000)
+#YFP_ddc_w6 <- FindVariableFeatures(YFP_ddc_w6, selection.method = "vst", nfeatures = 2000)
+
+bulk_all_types <- FindVariableFeatures(bulk_all_types, selection.method = "vst", nfeatures = 2000)
+
+```
+
+##### Scale Data
+
+```{r}
+all_genes <- rownames(bulk_all_types)
+#YFP_ctrl_rep1 <- ScaleData(YFP_ctrl_rep1, features = all_genes)
+#Bulk_ctrl_rep1 <- ScaleData(Bulk_ctrl_rep1, features = all_genes)
+
+#YFP_ddc_w6 <- ScaleData(YFP_ddc_w6, features = all_genes)
+#Bulk_ddc_w6 <- ScaleData(Bulk_ddc_w6, features = all_genes)
+
+bulk_all_types <- ScaleData(bulk_all_types, features = all_genes)
+
+```
+
+##### Run PCA
+
+```{r}
+# YFP_ctrl_rep1 <- RunPCA(YFP_ctrl_rep1, features = VariableFeatures(object = YFP_ctrl_rep1))
+# Bulk_ctrl_rep1 <- RunPCA(Bulk_ctrl_rep1, features = VariableFeatures(object = Bulk_ctrl_rep1))
+# 
+# YFP_ddc_w6 <- RunPCA(YFP_ddc_w6, features = VariableFeatures(object = YFP_ddc_w6))
+# Bulk_ddc_w6 <- RunPCA(Bulk_ddc_w6, features = VariableFeatures(object = Bulk_ddc_w6))
+
+bulk_all_types <- RunPCA(bulk_all_types, features = VariableFeatures(object = bulk_all_types))
+
+```
+##### Clustering
+
+```{r}
+# YFP_ctrl_rep1 <- FindNeighbors(YFP_ctrl_rep1, dims = 1:10)
+# YFP_ctrl_rep1 <- FindClusters(YFP_ctrl_rep1, resolution = 0.5, cluster.name = "yfp_ctrl")
+# 
+# Bulk_ctrl_rep1 <- FindNeighbors(Bulk_ctrl_rep1, dims = 1:10)
+# Bulk_ctrl_rep1 <- FindClusters(Bulk_ctrl_rep1, resolution = 0.5, cluster.name = "bulk_ctrl")
+# 
+# YFP_ddc_w6 <- FindNeighbors(YFP_ddc_w6, dims = 1:10)
+# YFP_ddc_w6 <- FindClusters(YFP_ddc_w6, resolution = 0.5, cluster.name = "yfp_ddc")
+# 
+# Bulk_ddc_w6 <- FindNeighbors(Bulk_ddc_w6, dims = 1:10)
+# Bulk_ddc_w6 <- FindClusters(Bulk_ddc_w6, resolution = 0.5, cluster.name = "bulk_ddc")
+
+bulk_all_types <- FindNeighbors(bulk_all_types, dims = 1:10)
+bulk_all_types <- FindClusters(bulk_all_types, resolution = 0.5)
+
+```
+
+##### Run UMAP
+
+```{r}
+
+# YFP_ctrl_rep1 <- RunUMAP(YFP_ctrl_rep1, features = VariableFeatures(object = YFP_ctrl_rep1))
+# Bulk_ctrl_rep1 <- RunUMAP(Bulk_ctrl_rep1, features = VariableFeatures(object = Bulk_ctrl_rep1))
+# 
+# YFP_ddc_w6 <- RunUMAP(YFP_ddc_w6, features = VariableFeatures(object = YFP_ddc_w6))
+# Bulk_ddc_w6 <- RunUMAP(Bulk_ddc_w6, features = VariableFeatures(object = Bulk_ddc_w6))
+
+bulk_all_types <- RunUMAP(bulk_all_types, dims = 1:30, reduction = "pca", reduction.name = "umap.unintegrated")
+
+```
+
+##### View UMAP
+
+```{r}
+
+DimPlot(bulk_all_types)
+
+```
+
+
+
+##### Integrate Layers
+
+```{r}
+
+bulk_all_types <- IntegrateLayers(object = bulk_all_types, method = CCAIntegration, orig.reduction = "pca", new.reduction = "integrated.cca")
+
+```
+
+##### Rejoining Layers   
+
+```{r}
+
+bulk_all_types[["RNA"]] <- JoinLayers(bulk_all_types[["RNA"]])
+
+```
+
+##### Reclustering
+
+```{r}
+
+bulk_all_types <- FindNeighbors(bulk_all_types, reduction = "integrated.cca", dims = 1:30)
+bulk_all_types <- FindClusters(bulk_all_types, resolution = 1)
+
+```
+##### Run UMAP
+
+```{r}
+
+bulk_all_types <- RunUMAP(bulk_all_types, dims = 1:30, reduction = "integrated.cca")
+
+```
+
+
+##### Visualize clusters using UMAP
+
+```{r}
+
+# DimPlot(Bulk_ctrl_rep1, reduction = "umap")
+# DimPlot(YFP_ctrl_rep1, reduction = "umap")
+# 
+# DimPlot(Bulk_ddc_w6, reduction = "umap")
+# DimPlot(YFP_ddc_w6, reduction = "umap")
+
+DimPlot(bulk_all_types, reduction = "umap")
+
+```
+
+##### Identify Cholangiocyte Clusters
+
+```{r}
+cholang_genes <- c("Epcam", "Krt7", "Sox9", "Anxa4", "Krt18", "Spp1")
+
+# DotPlot(Bulk_ctrl_rep1, features = cholang_genes)
+# # cholangiocyte clusters: 5
+# DotPlot(YFP_ctrl_rep1, features = cholang_genes)
+# # cholangiocyte clusters: 2, 11, kind of: 6, 3, 0
+# DotPlot(Bulk_ddc_w6, features = cholang_genes)
+# # cholangiocyte clusters: 6, 5
+# DotPlot(YFP_ddc_w6, features = cholang_genes)
+# # cholangiocyte clusters: 4
+
+DotPlot(bulk_all_types, features = cholang_genes)
+#cholangiocyte clusters: 4, 13, 17
+
+```
+
+##### Identify Hepatocyte Clusters
+
+```{r fig.width = 20}
+
+hep_genes <- c("Pon1", "Alb", "Srebf1", "Got1", "Gpt", "Cyp3a4", "Apom")
+
+# DotPlot(Bulk_ctrl_rep1, features = hep_genes)
+# # hepatocyte clusters: 6
+# DotPlot(YFP_ctrl_rep1, features = hep_genes)
+# # hepatocyte clusters: 8, 7, 1, 0 (should be all of them)
+# DotPlot(Bulk_ddc_w6, features = hep_genes)
+# # hepatocyte clusters: 0, 1, 7
+# DotPlot(YFP_ddc_w6, features = hep_genes)
+# # hepatocyte clusters: all of them
+
+DoHeatmap(bulk_all_types, features = hep_genes)
+#hepatocyte clusters: 10, 3, 17
+
+```
+##### Identify Macrophage Clusters
+
+```{r}
+
+macrophage_genes <- c("Ccr2", "Cd169", "Cx3cr1")
+
+# DotPlot(Bulk_ctrl_rep1, features = macrophage_genes)
+# # macrophage clusters:9
+# DotPlot(YFP_ctrl_rep1, features = macrophage_genes)
+# # macrophage clusters:10
+# DotPlot(Bulk_ddc_w6, features = macrophage_genes)
+# # macrophage clusters:8
+# DotPlot(YFP_ddc_w6, features = macrophage_genes)
+# # macrophage clusters:8
+
+DotPlot(bulk_all_types, features = macrophage_genes)
+# macrophage clusters: 14
+
+```
+##### Hepatocyte Zonation
+
+```{r}
+zonation_genes <- c("Oat", "Glul", "Cyp2e1", "Gapdh", "Sult5a1", "Cyp2f2", "Sds")
+# from most central on the left to most portal on the right
+
+# DoHeatmap(Bulk_ddc_w6, features = zonation_genes, idents = c())
+# # 0: portal; 1: mid ;7: central
+# DoHeatmap(Bulk_ctrl_rep1, features = zonation_genes)
+
+DoHeatmap(bulk_all_types, features = zonation_genes)
+# 3: central, 10: portal
+
+```
+
+
+##### Rename Clusters
+
+```{r}
+# Only run this once!
+# bulk_control_clusters <- c("1", "2", "3", "4", "5", "Cholang", "Hep", "6", "7", "Macro", "8", "9", "10")
+# 
+# print(levels(Bulk_ctrl_rep1))
+# names(bulk_control_clusters) <- levels(Bulk_ctrl_rep1)
+# 
+# Bulk_ctrl_rep1 <- RenameIdents(Bulk_ctrl_rep1, bulk_control_clusters)
+# 
+# 
+# bulk_ddc_clusters <- c("PortalHep", "MidHep", "1", "2", "3", "Cholang1", "Cholang2", "CentralHep", "Macro", "4")
+# 
+# names(bulk_ddc_clusters) <- levels(Bulk_ddc_w6)
+# 
+# Bulk_ddc_w6 <- RenameIdents(Bulk_ddc_w6, bulk_ddc_clusters)
+
+bulk_all_types_clusters <- c("0", "1", "2", "CentralHep", "Cholang1", "5", "6", "7", "8", "9", "PortalHep", "11", "12", "Cholang2", "Macro", "15", "16", "Cholang3", "18", "19", "20")
+
+names(bulk_all_types_clusters) <- levels(bulk_all_types)
+
+bulk_all_types <- RenameIdents(bulk_all_types, bulk_all_types_clusters)
+
+```
+
+##### Separate out Data
+
+```{r}
+
+  subsets_list <- SplitObject(bulk_all_types, split.by = "orig.ident")
+  bulk_control <- subsets_list[[1]]
+  bulk_ddc <- subsets_list[[2]]
+
+```
+
+##### Run UMAPS on Separated Data
+
+```{r}
+
+#bulk_ddc <- RunUMAP(bulk_ddc, features = VariableFeatures(bulk_ddc))
+
+#bulk_control <- RunUMAP(bulk_control, features = VariableFeatures(bulk_control))
+
+```
+
+
+### View Plots
+
+##### WT vs DDC overall 
+```{r fig.width = 25, fig.height = 5}
+
+(DotPlot(bulk_control, features = mousePorphyrinGenes)+NoLegend() + theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) + ylab("Control Mice Livers") ) + (DotPlot(bulk_ddc, features = mousePorphyrinGenes) + theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1))+ ylab("DDC Mice Livers"))
+
+```
+
+##### Cholangiocyes in WT vs DDC livers
+
+```{r fig.width=20 ,fig.height = 5}
+(DotPlot(bulk_control, features = mousePorphyrinGenes, idents = c("Cholang1", "Cholang2", "Cholang3"))+NoLegend() + theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) + ylab("Control Mice Livers") ) + (DotPlot(bulk_ddc, features = mousePorphyrinGenes, idents = c("Cholang1", "Cholang2", "Cholang3")) + theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1))+ ylab("DDC Mice Livers"))
+```
+
+
+##### Expression changes in heme transport/synth genes
+
+```{r fig.width = 20, fig.height=5}
+
+mouse_heme_genes <- c(mouse_heme_synth_genes, mouse_heme_transp_genes)
+
+(DotPlot(bulk_control, features=mouse_heme_genes) + ylab("Control Mice")) + (DotPlot(bulk_ddc, features = mouse_heme_genes) + ylab("DDC Mice"))
+
+```
+
+##### Expression of porphyrin genes in individual cell types (Control vs DDC)
+
+```{r fig.width = 7, fig.height = 10}
+
+#Cholangiocytes
+wt_dotplot <- (DotPlot(bulk_control, features = mousePorphyrinGenes, idents = c("Cholang1", "Cholang2", "Cholang3"))+NoLegend()+coord_flip()  + ylab("Control Mice Livers")+xlab(""))
+
+ddc_dotplot <- (DotPlot(bulk_ddc, features = mousePorphyrinGenes, idents = c("Cholang1", "Cholang2", "Cholang3")) + NoLegend()+coord_flip() + 
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.y = element_blank(),
+        axis.text.x = element_blank()) + ylab("DDC Mice Livers")+xlab(""))
+#combined_plot <- plot_grid(wt_dotplot, ddc_dotplot, ncol = 1, align = "v")
+
+combined_plot <- wt_dotplot+ddc_dotplot
+
+combined_plot
+
+#Hepatocytes
+wt_dotplot <- (DotPlot(bulk_control, features = mousePorphyrinGenes, idents = c("PortalHep", "CentralHep"))+NoLegend()+coord_flip()  + ylab("Control Mice Livers")+xlab("") + theme(axis.text.x=element_blank()))
+
+ddc_dotplot <- (DotPlot(bulk_ddc, features = mousePorphyrinGenes, idents = c("PortalHep", "CentralHep")) + NoLegend()+coord_flip() + 
+  theme(
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.y = element_blank(),
+        #axis.text.x = element_blank()
+        ) + ylab("DDC Mice Livers")+xlab(""))
+
+#combined_plot <- plot_grid(wt_dotplot, ddc_dotplot, ncol = 1, align = "v")
+
+combined_plot <- wt_dotplot+ddc_dotplot
+
+combined_plot
+
+```
+
+### Get p-values
+
+###### Cholangiocytes
+
+```{r}
+
+t_test_genes <- mousePorphyrinGenes <- c("Hmox1", "Fech", "Eprs", "Fxn", "Hccs", "Blvrb", "Hmbs", "Cox15", "Ears2", "Blvra", "Hmox2", "Ppox", "Urod", "Mmab", "Cpox", "Gusb", "Uros", "Cox10", "Alad", "Cp", "Alas2", "Alas1", "Abcb6", "Abcg2", "Abcc5", "Abcc12", "Abcc3", "Abcc4", "Slco2b1", "Alb", "Fabp1", "Gsta1", "Ugt1a1", "Abcc1", "Abcc2")
+
+# Removed genes: Abccb10, Ugt1a4, Slco1b3, Flvcr1, Slco1b1
+
+wt_chol <- subset(Bulk_ctrl_rep1, cells = WhichCells(Bulk_ctrl_rep1, idents="Hep"))
+
+ddc_chol <- subset(Bulk_ddc_w6, cells = WhichCells(Bulk_ddc_w6, idents="Hep"))
+
+chol_p_vals <- c()
+adj_chol_p_vals <- c()
+
+for(i in mousePorphyrinGenes){
+  print("Gene Name:")
+  print(i)
+
+  wt_chol_data <- GetAssayData(wt_chol, slot = "data")[i,]
+  ddc_chol_data <- GetAssayData(ddc_chol, slot = "data")[i,]
+  
+  chol_t_results <- t.test(wt_chol_data, ddc_chol_data)
+  chol_p <- chol_t_results$p.value
+  print("Chol p value:")
+  print(chol_p)
+  chol_p_vals <- append(chol_p_vals, chol_p)
+  
+  adj_chol_p <- p.adjust(chol_p, method = "BH")
+  print("Adjusted Hep p value:")
+  print(adj_chol_p)
+  adj_chol_p_vals <- append(adj_chol_p_vals, adj_chol_p)
+}
+#ddc_cholang_markers<- FindMarkers(Bulk_ctrl_rep1, ident.1 = "Cholang", test.use = "t")
+#ddc_cholang_results <- ddc_cholang_markers %>% pull(p_val)
+
+#wt_cholang_markers <- FindMarkers(Bulk_ddc_w6, ident.1 = "Cholang", test.use = "t")
+#wt_cholang_results <- wt_cholang_markers %>% pull(p_val)
+
+
+```
+
+###### Hepatocytes
+
+```{r}
+
+t_test_genes <- mousePorphyrinGenes <- c("Hmox1", "Fech", "Eprs", "Fxn", "Hccs", "Blvrb", "Hmbs", "Cox15", "Ears2", "Blvra", "Hmox2", "Ppox", "Urod", "Mmab", "Cpox", "Gusb", "Uros", "Cox10", "Alad", "Cp", "Alas2", "Alas1", "Abcb6", "Abcg2", "Abcc5", "Abcc12", "Abcc3", "Abcc4", "Slco2b1", "Alb", "Fabp1", "Gsta1", "Ugt1a1", "Abcc1", "Abcc2")
+
+# Removed genes: Abccb10, Ugt1a4, Slco1b3, Flvcr1, Slco1b1
+
+wt_hep <- subset(Bulk_ctrl_rep1, cells = WhichCells(Bulk_ctrl_rep1, idents="Hep"))
+
+ddc_hep <- subset(Bulk_ddc_w6, cells = WhichCells(Bulk_ddc_w6, idents="Hep"))
+
+hep_p_vals <- c()
+adj_hep_p_vals <- c()
+
+for(i in mousePorphyrinGenes){
+  print("Gene Name:")
+  print(i)
+
+  wt_hep_data <- GetAssayData(wt_hep, slot = "data")[i,]
+  ddc_hep_data <- GetAssayData(ddc_hep, slot = "data")[i,]
+  
+  hep_t_results <- t.test(wt_hep_data, ddc_hep_data)
+  hep_p <- hep_t_results$p.value
+  print("Hep p value:")
+  print(hep_p)
+  hep_p_vals <- append(hep_p_vals, hep_p)
+  
+  adj_hep_p <- p.adjust(hep_p, method = "BH")
+  print("Adjusted Hep p value:")
+  print(adj_hep_p)
+  adj_hep_p_vals <- append(adj_hep_p_vals, adj_hep_p)
+}
+#ddc_cholang_markers<- FindMarkers(Bulk_ctrl_rep1, ident.1 = "Cholang", test.use = "t")
+#ddc_cholang_results <- ddc_cholang_markers %>% pull(p_val)
+
+#wt_cholang_markers <- FindMarkers(Bulk_ddc_w6, ident.1 = "Cholang", test.use = "t")
+#wt_cholang_results <- wt_cholang_markers %>% pull(p_val)
+
+
+```
+
+##### UMAPs of WT and DDC Mouse Livers
+
+```{r}
+
+DimPlot(bulk_control, reduction = "umap")
+
+DimPlot(bulk_ddc, reduction = "umap")
+
+```
+
+
+### Other Plots
+
+##### UMAP of key genes in heme synthesis
+
+```{r fig.height = 9}
+
+heme_synth_genes <- c("ALAS1", "ALAD1", "PPOX", "HMOX1", "FECH")
+mouse_heme_synth_genes <- c("Alas1", "Alad1", "Ppox", "Hmox1", "Fech")
+
+DimPlot(humanData, reduction = "umap")
+FeaturePlot(humanData, features = heme_synth_genes, reduction = "umap")
+
+DimPlot(zfData, reduction = "umap")
+FeaturePlot(zfData, features = heme_synth_genes, reduction = "umap")
+
+DimPlot(mouseControl, reduction = "umap")
+FeaturePlot(mouseControl, features = mouse_heme_synth_genes, reduction = "umap")
+
+```
+
+##### UMAP of key genes in heme transport
+
+```{r fig.height = 9}
+
+heme_transp_genes <- c("ABCG2", "ABCB6", "ABCB10", "HRG1", "FLVCR1")
+mouse_heme_transp_genes <- c("Abcg2", "Abcb6", "Abcb10", "Hrg1", "Flvcr1")
+
+DimPlot(humanData, reduction = "umap")
+FeaturePlot(humanData, features = heme_transp_genes, reduction = "umap")
+
+DimPlot(zfData, reduction = "umap")
+FeaturePlot(zfData, features = heme_transp_genes, reduction = "umap", keep.scale = "all")
+
+DimPlot(mouseControl, reduction = "umap")
+FeaturePlot(mouseControl, features = mouse_heme_transp_genes, reduction = "umap")
+
+```
+
+
+### 2 Week DDC
+
+##### Load Control Data
+
+```{r}
+
+Bulk_ctrl_rep1 <- CreateSeuratObject(counts = Read10X_h5("data/merrell_mouse_ddc/GSM4885630_Bulk_ctrl_rep1_filtered_feature_bc_matrix.h5"), project = "Bulk_ctrl_rep1")
+
+```
+##### Load DDC Data
+
+```{r}
+Bulk_ddc_w2 <- CreateSeuratObject(counts = Read10X_h5("data/merrell_mouse_ddc/GSE157698_Bulk_W2_filtered_gene_bc_matrices_h5.h5"), project = "Bulk_ddc_w6")
+```
+##### Merge Data
+
+```{r}
+
+bulk2_all_types <- merge(Bulk_ctrl_rep1, y = Bulk_ddc_w2, add.cell.ids = c("control", "ddc"))
+
+```
+
+##### Normalize Data
+
+```{r}
+#YFP_ctrl_rep1 <- NormalizeData(YFP_ctrl_rep1)
+#Bulk_ctrl_rep1 <- NormalizeData(Bulk_ctrl_rep1)
+
+#Bulk_ddc_w6 <- NormalizeData(Bulk_ddc_w6)
+#YFP_ddc_w6 <- NormalizeData(YFP_ddc_w6)
+
+bulk2_all_types <- NormalizeData(bulk2_all_types)
+
+```
+
+##### Find Variable Features
+
+```{r}
+#Bulk_ctrl_rep1 <- FindVariableFeatures(Bulk_ctrl_rep1, selection.method = "vst", nfeatures = 2000)
+#YFP_ctrl_rep1 <- FindVariableFeatures(YFP_ctrl_rep1, selection.method = "vst", nfeatures = 2000)
+
+
+#Bulk_ddc_w6 <- FindVariableFeatures(Bulk_ddc_w6, selection.method = "vst", nfeatures = 2000)
+#YFP_ddc_w6 <- FindVariableFeatures(YFP_ddc_w6, selection.method = "vst", nfeatures = 2000)
+
+bulk2_all_types <- FindVariableFeatures(bulk2_all_types, selection.method = "vst", nfeatures = 2000)
+
+```
+
+##### Scale Data
+
+```{r}
+all2_genes <- rownames(bulk2_all_types)
+
+bulk2_all_types <- ScaleData(bulk2_all_types, features = all2_genes)
+
+```
+
+##### Run PCA
+
+```{r}
+# YFP_ctrl_rep1 <- RunPCA(YFP_ctrl_rep1, features = VariableFeatures(object = YFP_ctrl_rep1))
+# Bulk_ctrl_rep1 <- RunPCA(Bulk_ctrl_rep1, features = VariableFeatures(object = Bulk_ctrl_rep1))
+# 
+# YFP_ddc_w6 <- RunPCA(YFP_ddc_w6, features = VariableFeatures(object = YFP_ddc_w6))
+# Bulk_ddc_w6 <- RunPCA(Bulk_ddc_w6, features = VariableFeatures(object = Bulk_ddc_w6))
+
+bulk2_all_types <- RunPCA(bulk2_all_types, features = VariableFeatures(object = bulk2_all_types))
+  
+```
+##### Clustering
+
+```{r}
+# YFP_ctrl_rep1 <- FindNeighbors(YFP_ctrl_rep1, dims = 1:10)
+# YFP_ctrl_rep1 <- FindClusters(YFP_ctrl_rep1, resolution = 0.5, cluster.name = "yfp_ctrl")
+# 
+# Bulk_ctrl_rep1 <- FindNeighbors(Bulk_ctrl_rep1, dims = 1:10)
+# Bulk_ctrl_rep1 <- FindClusters(Bulk_ctrl_rep1, resolution = 0.5, cluster.name = "bulk_ctrl")
+# 
+# YFP_ddc_w6 <- FindNeighbors(YFP_ddc_w6, dims = 1:10)
+# YFP_ddc_w6 <- FindClusters(YFP_ddc_w6, resolution = 0.5, cluster.name = "yfp_ddc")
+# 
+# Bulk_ddc_w6 <- FindNeighbors(Bulk_ddc_w6, dims = 1:10)
+# Bulk_ddc_w6 <- FindClusters(Bulk_ddc_w6, resolution = 0.5, cluster.name = "bulk_ddc")
+
+bulk2_all_types <- FindNeighbors(bulk2_all_types, dims = 1:10)
+bulk2_all_types <- FindClusters(bulk2_all_types, resolution = 0.5)
+
+```
+
+##### Run UMAP
+
+```{r}
+
+# YFP_ctrl_rep1 <- RunUMAP(YFP_ctrl_rep1, features = VariableFeatures(object = YFP_ctrl_rep1))
+# Bulk_ctrl_rep1 <- RunUMAP(Bulk_ctrl_rep1, features = VariableFeatures(object = Bulk_ctrl_rep1))
+# 
+# YFP_ddc_w6 <- RunUMAP(YFP_ddc_w6, features = VariableFeatures(object = YFP_ddc_w6))
+# Bulk_ddc_w6 <- RunUMAP(Bulk_ddc_w6, features = VariableFeatures(object = Bulk_ddc_w6))
+
+bulk2_all_types <- RunUMAP(bulk2_all_types, dims = 1:30, reduction = "pca", reduction.name = "umap.unintegrated")
+
+```
+
+##### View UMAP
+
+```{r}
+
+DimPlot(bulk2_all_types)
+
+```
+
+
+
+##### Integrate Layers
+
+```{r}
+
+bulk2_all_types <- IntegrateLayers(object = bulk2_all_types, method = CCAIntegration, orig.reduction = "pca", new.reduction = "integrated.cca")
+
+```
+
+##### Rejoining Layers   
+
+```{r}
+
+bulk2_all_types[["RNA"]] <- JoinLayers(bulk2_all_types[["RNA"]])
+
+```
+
+##### Reclustering
+
+```{r}
+
+bulk2_all_types <- FindNeighbors(bulk2_all_types, reduction = "integrated.cca", dims = 1:30)
+bulk2_all_types <- FindClusters(bulk2_all_types, resolution = 1)
+
+```
+##### Run UMAP
+
+```{r}
+
+bulk2_all_types <- RunUMAP(bulk2_all_types, dims = 1:30, reduction = "integrated.cca")
+
+```
+
+
+##### Visualize clusters using UMAP
+
+```{r}
+
+# DimPlot(Bulk_ctrl_rep1, reduction = "umap")
+# DimPlot(YFP_ctrl_rep1, reduction = "umap")
+# 
+# DimPlot(Bulk_ddc_w6, reduction = "umap")
+# DimPlot(YFP_ddc_w6, reduction = "umap")
+
+DimPlot(bulk2_all_types, reduction = "umap")
+
+```
+
+##### Identify Cholangiocyte Clusters
+
+```{r}
+cholang_genes <- c("Epcam", "Krt7", "Sox9", "Anxa4", "Krt18", "Spp1")
+
+# DotPlot(Bulk_ctrl_rep1, features = cholang_genes)
+# # cholangiocyte clusters: 5
+# DotPlot(YFP_ctrl_rep1, features = cholang_genes)
+# # cholangiocyte clusters: 2, 11, kind of: 6, 3, 0
+# DotPlot(Bulk_ddc_w6, features = cholang_genes)
+# # cholangiocyte clusters: 6, 5
+# DotPlot(YFP_ddc_w6, features = cholang_genes)
+# # cholangiocyte clusters: 4
+
+DotPlot(bulk2_all_types, features = cholang_genes)
+#cholangiocyte clusters: 4, 13, 17
+
+```
+
+##### Identify Hepatocyte Clusters
+
+```{r fig.width = 20}
+
+hep_genes <- c("Pon1", "Alb", "Srebf1", "Got1", "Gpt", "Cyp3a4", "Apom")
+
+# DotPlot(Bulk_ctrl_rep1, features = hep_genes)
+# # hepatocyte clusters: 6
+# DotPlot(YFP_ctrl_rep1, features = hep_genes)
+# # hepatocyte clusters: 8, 7, 1, 0 (should be all of them)
+# DotPlot(Bulk_ddc_w6, features = hep_genes)
+# # hepatocyte clusters: 0, 1, 7
+# DotPlot(YFP_ddc_w6, features = hep_genes)
+# # hepatocyte clusters: all of them
+
+DoHeatmap(bulk2_all_types, features = hep_genes)
+#hepatocyte clusters: 10, 3, 17
+
+```
+##### Identify Macrophage Clusters
+
+```{r}
+
+macrophage_genes <- c("Ccr2", "Cd169", "Cx3cr1")
+
+# DotPlot(Bulk_ctrl_rep1, features = macrophage_genes)
+# # macrophage clusters:9
+# DotPlot(YFP_ctrl_rep1, features = macrophage_genes)
+# # macrophage clusters:10
+# DotPlot(Bulk_ddc_w6, features = macrophage_genes)
+# # macrophage clusters:8
+# DotPlot(YFP_ddc_w6, features = macrophage_genes)
+# # macrophage clusters:8
+
+DotPlot(bulk2_all_types, features = macrophage_genes)
+# macrophage clusters: 14
+
+```
+##### Hepatocyte Zonation
+
+```{r}
+zonation_genes <- c("Oat", "Glul", "Cyp2e1", "Gapdh", "Sult5a1", "Cyp2f2", "Sds")
+# from most central on the left to most portal on the right
+
+# DoHeatmap(Bulk_ddc_w6, features = zonation_genes, idents = c())
+# # 0: portal; 1: mid ;7: central
+# DoHeatmap(Bulk_ctrl_rep1, features = zonation_genes)
+
+DoHeatmap(bulk2_all_types, features = zonation_genes)
+# 3: central, 10: portal
+
+```
+
+
+##### Rename Clusters
+
+```{r}
+# Only run this once!
+# bulk_control_clusters <- c("1", "2", "3", "4", "5", "Cholang", "Hep", "6", "7", "Macro", "8", "9", "10")
+# 
+# print(levels(Bulk_ctrl_rep1))
+# names(bulk_control_clusters) <- levels(Bulk_ctrl_rep1)
+# 
+# Bulk_ctrl_rep1 <- RenameIdents(Bulk_ctrl_rep1, bulk_control_clusters)
+# 
+# 
+# bulk_ddc_clusters <- c("PortalHep", "MidHep", "1", "2", "3", "Cholang1", "Cholang2", "CentralHep", "Macro", "4")
+# 
+# names(bulk_ddc_clusters) <- levels(Bulk_ddc_w6)
+# 
+# Bulk_ddc_w6 <- RenameIdents(Bulk_ddc_w6, bulk_ddc_clusters)
+
+bulk2_all_types_clusters <- c("0", "1", "2", "CentralHep", "Cholang1", "5", "6", "7", "8", "9", "PortalHep", "11", "12", "Cholang2", "Macro", "15", "16", "Cholang3", "18", "19", "20")
+
+names(bulk2_all_types_clusters) <- levels(bulk2_all_types)
+
+bulk2_all_types <- RenameIdents(bulk2_all_types, bulk2_all_types_clusters)
+
+```
+
+##### Separate out Data
+
+```{r}
+
+  subsets_list <- SplitObject(bulk2_all_types, split.by = "orig.ident")
+  bulk_control2 <- subsets_list[[1]]
+  bulk_ddc2 <- subsets_list[[2]]
+
+```
+
+##### Run UMAPS on Separated Data
+
+```{r}
+
+#bulk_ddc <- RunUMAP(bulk_ddc, features = VariableFeatures(bulk_ddc))
+
+#bulk_control <- RunUMAP(bulk_control, features = VariableFeatures(bulk_control))
+
+```
+
+
+### View Plots
+
+##### WT vs DDC overall 
+```{r fig.width = 25, fig.height = 5}
+
+(DotPlot(bulk_control2, features = mousePorphyrinGenes)+NoLegend() + theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) + ylab("Control Mice Livers") ) + (DotPlot(bulk_ddc2, features = mousePorphyrinGenes) + theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1))+ ylab("1 Week DDC Mice Livers"))
+
+```
+
+##### Cholangiocyes in WT vs DDC livers
+
+```{r fig.width=20 ,fig.height = 5}
+(DotPlot(bulk_control2, features = mousePorphyrinGenes, idents = c("Cholang1", "Cholang2", "Cholang3"))+NoLegend() + theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) + ylab("Control Mice Livers") ) + (DotPlot(bulk_ddc2, features = mousePorphyrinGenes, idents = c("Cholang1", "Cholang2", "Cholang3")) + theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1))+ ylab("DDC Mice Livers"))
+```
+
+
+##### Expression changes in heme transport/synth genes
+
+```{r fig.width = 20, fig.height=5}
+
+mouse_heme_genes <- c(mouse_heme_synth_genes, mouse_heme_transp_genes)
+
+(DotPlot(bulk_control2, features=mouse_heme_genes) + ylab("Control Mice")) + (DotPlot(bulk_ddc2, features = mouse_heme_genes) + ylab("DDC Mice"))
+
+```
+
+##### Expression of porphyrin genes in individual cell types (Control vs DDC)
+
+```{r fig.width = 7, fig.height = 10}
+
+#Cholangiocytes
+wt_dotplot <- (DotPlot(bulk_control2, features = mousePorphyrinGenes, idents = c("Cholang1", "Cholang2", "Cholang3"))+NoLegend()+coord_flip()  + ylab("Control Mice Livers")+xlab(""))
+
+ddc_dotplot <- (DotPlot(bulk_ddc2, features = mousePorphyrinGenes, idents = c("Cholang1", "Cholang2", "Cholang3")) + NoLegend()+coord_flip() + 
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.y = element_blank(),
+        axis.text.x = element_blank()) + ylab("DDC Mice Livers")+xlab(""))
+#combined_plot <- plot_grid(wt_dotplot, ddc_dotplot, ncol = 1, align = "v")
+
+combined_plot <- wt_dotplot+ddc_dotplot
+
+combined_plot
+
+#Hepatocytes
+wt_dotplot <- (DotPlot(bulk_control2, features = mousePorphyrinGenes, idents = c("PortalHep", "CentralHep"))+NoLegend()+coord_flip()  + ylab("Control Mice Livers")+xlab("") + theme(axis.text.x=element_blank()))
+
+ddc_dotplot <- (DotPlot(bulk_ddc, features = mousePorphyrinGenes, idents = c("PortalHep", "CentralHep")) + NoLegend()+coord_flip() + 
+  theme(
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.y = element_blank(),
+        #axis.text.x = element_blank()
+        ) + ylab("DDC Mice Livers")+xlab(""))
+
+#combined_plot <- plot_grid(wt_dotplot, ddc_dotplot, ncol = 1, align = "v")
+
+combined_plot <- wt_dotplot+ddc_dotplot
+
+combined_plot
+
+```
+
+###### Hepatocytes
+
+```{r}
+
+t_test_genes <- mousePorphyrinGenes <- c("Hmox1", "Fech", "Eprs", "Fxn", "Hccs", "Blvrb", "Hmbs", "Cox15", "Ears2", "Blvra", "Hmox2", "Ppox", "Urod", "Mmab", "Cpox", "Gusb", "Uros", "Cox10", "Alad", "Cp", "Alas2", "Alas1", "Abcb6", "Abcg2", "Abcc5", "Abcc12", "Abcc3", "Abcc4", "Slco2b1", "Alb", "Fabp1", "Gsta1", "Ugt1a1", "Abcc1", "Abcc2")
+
+# Removed genes: Abccb10, Ugt1a4, Slco1b3, Flvcr1, Slco1b1
+
+wt_hep <- subset(Bulk_ctrl_rep1, cells = WhichCells(Bulk_ctrl_rep1, idents="Hep"))
+
+ddc_hep <- subset(Bulk_ddc_w2, cells = WhichCells(Bulk_ddc_w6, idents="Hep"))
+
+hep_p_vals <- c()
+adj_hep_p_vals <- c()
+
+for(i in mousePorphyrinGenes){
+  print("Gene Name:")
+  print(i)
+
+  wt_hep_data <- GetAssayData(wt_hep, slot = "data")[i,]
+  ddc_hep_data <- GetAssayData(ddc_hep, slot = "data")[i,]
+  
+  hep_t_results <- t.test(wt_hep_data, ddc_hep_data)
+  hep_p <- hep_t_results$p.value
+  print("Hep p value:")
+  print(hep_p)
+  hep_p_vals <- append(hep_p_vals, hep_p)
+  
+  adj_hep_p <- p.adjust(hep_p, method = "BH")
+  print("Adjusted Hep p value:")
+  print(adj_hep_p)
+  adj_hep_p_vals <- append(adj_hep_p_vals, adj_hep_p)
+}
+#ddc_cholang_markers<- FindMarkers(Bulk_ctrl_rep1, ident.1 = "Cholang", test.use = "t")
+#ddc_cholang_results <- ddc_cholang_markers %>% pull(p_val)
+
+#wt_cholang_markers <- FindMarkers(Bulk_ddc_w6, ident.1 = "Cholang", test.use = "t")
+#wt_cholang_results <- wt_cholang_markers %>% pull(p_val)
+
+
+```
+
+##### UMAPs of WT and DDC Mouse Livers
+
+```{r}
+
+DimPlot(bulk_control2, reduction = "umap")
+
+DimPlot(bulk_ddc2, reduction = "umap")
+
+```
+
+
+
+
